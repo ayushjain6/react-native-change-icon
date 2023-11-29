@@ -38,12 +38,43 @@ RCT_REMAP_METHOD(changeIcon, iconName:(NSString *)iconName resolver:(RCTPromiseR
             return;
         }
 
-        resolve(iconName);
+        NSMutableString *selectorString = [[NSMutableString alloc] initWithCapacity:40];
+        [selectorString appendString:@"_setAlternate"];
+        [selectorString appendString:@"IconName:"];
+        [selectorString appendString:@"completionHandler:"];
 
-        [[UIApplication sharedApplication] setAlternateIconName:iconName completionHandler:^(NSError * _Nullable error) {
-            return;
-        }];
+        SEL selector = NSSelectorFromString(selectorString);
+        IMP imp = [[UIApplication sharedApplication] methodForSelector:selector];
+        void (*func)(id, SEL, id, id) = (void (*)(id, SEL, id, id))imp;
+        if (func)
+        {
+            func([UIApplication sharedApplication], selector, iconName, ^(NSError * _Nullable error) {
+                if (error) {
+                    reject(@"SYSTEM_ERROR", error.localizedDescription, error);
+                } else {
+                    resolve(iconName);
+                }
+            });
+        }
     });
+}
+
+RCT_EXPORT_METHOD(checkIcon:(NSString *)iconName resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *infoDict = [[NSBundle mainBundle] infoDictionary];
+    if (infoDict) {
+        NSDictionary *iconsDict = [infoDict objectForKey:@"CFBundleIcons"];
+        if (iconsDict) {
+            NSDictionary *alternateIconsDict = [iconsDict objectForKey:@"CFBundleAlternateIcons"];
+            if (alternateIconsDict) {
+                NSDictionary *iconInfo = [alternateIconsDict objectForKey:iconName];
+                if (iconInfo) {
+                    resolve(@(YES));
+                    return;
+                }
+            }
+        }
+    }
+    resolve(@(NO));
 }
 
 // Don't compile this code when we build for the old architecture.

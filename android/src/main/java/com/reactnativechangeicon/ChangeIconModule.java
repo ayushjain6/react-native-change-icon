@@ -4,8 +4,10 @@ import androidx.annotation.NonNull;
 
 import android.app.Activity;
 import android.app.Application;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.ComponentName;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 
 import com.facebook.react.bridge.Promise;
@@ -83,9 +85,29 @@ public class ChangeIconModule extends ReactContextBaseJavaModule implements Appl
             return;
         }
         this.classesToKill.add(this.componentClass);
+        this.classesToKill.remove(activeClass);
         this.componentClass = activeClass;
         activity.getApplication().registerActivityLifecycleCallbacks(this);
         iconChanged = true;
+    }
+
+    @ReactMethod
+    public void checkIcon(String iconName, Promise promise) {
+        final Activity activity = getCurrentActivity();
+        final String activeClass = "com.mobiledoorman.tenantapp2" + ".MainActivity." + iconName;
+        try{
+            Intent intent = new Intent();
+            intent.setComponent(new ComponentName(this.packageName, activeClass));
+            PackageManager packageManager = activity.getPackageManager();
+            List<ResolveInfo> resolveInfos = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY | PackageManager.GET_DISABLED_COMPONENTS);
+            if (resolveInfos != null && !resolveInfos.isEmpty()) {
+                promise.resolve(true);
+            } else {
+                promise.resolve(false);
+            }
+        }catch (Exception e){
+            promise.resolve(false);
+        }
     }
 
     private void completeIconChange() {
